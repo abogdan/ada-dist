@@ -18,7 +18,14 @@ case "$OS" in
 esac
 ASSET="ada-${OS}-${ARCH}"
 
-LATEST=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | head -1 | cut -d'"' -f4)
+# Resolve the newest release via GitHub's web redirect (github.com), not the API
+# (api.github.com), which rate-limits unauthenticated callers at 60/hr:
+# /releases/latest 302-redirects to /releases/tag/<tag>.
+LATEST=$(curl -fsSI "https://github.com/${REPO}/releases/latest" \
+  | tr -d '\r' \
+  | awk 'tolower($1)=="location:"{print $2}' \
+  | sed 's#.*/tag/##' \
+  | head -1)
 if [ -z "$LATEST" ]; then
   echo "could not determine latest release" >&2
   exit 1
